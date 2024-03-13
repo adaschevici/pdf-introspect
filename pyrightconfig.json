@@ -1,0 +1,4 @@
+{
+  "venvPath": "<parent path to virtual environment>",
+  "venv": "<directory name of virtual environment>",
+}

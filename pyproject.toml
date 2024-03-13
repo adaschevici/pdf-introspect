@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "chat-with-pdfs"
+version = "0.1.0"
+description = ""
+authors = ["Artur Das <me@artur.wtf>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
