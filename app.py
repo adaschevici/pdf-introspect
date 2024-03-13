@@ -2,12 +2,10 @@ import streamlit as st
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from PyPDF2 import PdfReader
-from qdrant_client import QdrantClient
-from langchain_community.embeddings import OpenAIEmbeddings
+from langchain_openai.embeddings import OpenAIEmbeddings
 from langchain_community.vectorstores import Qdrant
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.schema import Document
-from qdrant_client import models
 
 
 class Settings(BaseSettings):
