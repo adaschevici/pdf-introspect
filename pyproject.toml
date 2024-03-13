@@ -22,6 +22,7 @@ ipython = "^8.22.2"
 ipdb = "^0.13.13"
 black = "^24.2.0"
 pyright = "^1.1.353"
+watchdog = "^4.0.0"
 
 [build-system]
 requires = ["poetry-core"]
