@@ -1,11 +1,17 @@
+import time
 import streamlit as st
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from PyPDF2 import PdfReader
-from langchain_openai.embeddings import OpenAIEmbeddings
+from langchain_community.embeddings import HuggingFaceInstructEmbeddings
 from langchain_community.vectorstores import Qdrant
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.schema import Document
+from langchain.memory import ConversationBufferMemory
+from langchain.chains import ConversationalRetrievalChain
+from langchain_openai import ChatOpenAI
+from langchain_openai.embeddings import OpenAIEmbeddings
+from html_template import css, bot_template, user_template
 
 
 class Settings(BaseSettings):
@@ -32,7 +38,8 @@ def get_text_chunks(raw_text):
 
 
 def get_vector_store(text_chunks, qdrant_url="http://localhost:6333"):
-    embeddings = OpenAIEmbeddings()
+    # embeddings = OpenAIEmbeddings()
+    embeddings = HuggingFaceInstructEmbeddings(model_name="hkunlp/instructor-xl")
     vector_store = Qdrant.from_documents(
         text_chunks,
         embeddings,
@@ -41,6 +48,19 @@ def get_vector_store(text_chunks, qdrant_url="http://localhost:6333"):
         force_recreate=True,
     )
     return vector_store
+
+def get_conversation_chain(vector_store, settings):
+    memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
+    llm = ChatOpenAI(
+        model="gpt-3.5-turbo",
+        openai_api_key=settings.openai_api_key.get_secret_value(),
+    )
+    conversation_chain = ConversationalRetrievalChain.from_llm(
+        llm=llm,
+        retriever=vector_store.as_retriever(),
+        memory=memory,
+    )
+    return conversation_chain
 
 
 def main():
@@ -51,6 +71,11 @@ def main():
     st.set_page_config(
         page_title="Chat with multiple PDFs", page_icon=":books:", layout="wide"
     )
+
+    st.write(css, unsafe_allow_html=True)
+    if "conversation" not in st.session_state:
+        st.session_state.conversation = None
+
     st.header("Chat with multiple PDFs :books:")
 
     st.text_input("Ask a question about the PDFs")
@@ -69,7 +94,16 @@ def main():
                 text_chunks = get_text_chunks(raw_text)
 
                 # create vector store for each chunk
+                start = time.time()
                 vector_store = get_vector_store(text_chunks)
+                end = time.time()
+                print(f"Time taken to create vector store: {end - start}")
+
+                # create conversation chain
+                st.session_state.conversation = get_conversation_chain(vector_store, settings=settings)
+    message = "Hello, how can I help you today?"
+    st.write(bot_template.format(message=message), unsafe_allow_html=True)
+    st.write(user_template.format(message=message), unsafe_allow_html=True)
 
 
 if __name__ == "__main__":
