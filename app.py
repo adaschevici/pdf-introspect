@@ -12,6 +12,8 @@ from langchain.chains import ConversationalRetrievalChain
 from langchain_openai import ChatOpenAI
 from langchain_openai.embeddings import OpenAIEmbeddings
 from html_template import css, bot_template, user_template
+from langchain_core.messages import AIMessage, HumanMessage
+from langchain.prompts import HumanMessagePromptTemplate, ChatPromptTemplate
 
 
 class Settings(BaseSettings):
@@ -49,31 +51,48 @@ def get_vector_store(text_chunks, qdrant_url="http://localhost:6333"):
     )
     return vector_store
 
-def get_conversation_chain(vector_store, settings):
+def get_conversation_chain(vector_store, qa_prompt, settings):
     memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
     llm = ChatOpenAI(
         model="gpt-3.5-turbo",
+        temperature=0,
         openai_api_key=settings.openai_api_key.get_secret_value(),
     )
     conversation_chain = ConversationalRetrievalChain.from_llm(
         llm=llm,
         retriever=vector_store.as_retriever(),
         memory=memory,
+        return_source_documents=True,
+        combine_docs_chain_kwargs={"prompt": qa_prompt},
     )
     return conversation_chain
 
 def handle_user_input(user_question):
     response = st.session_state.conversation({"question": user_question})
     st.session_state.chat_history = response["chat_history"]
-    for i, message in enumerate(st.session_state.chat_history):
-        if i % 2 == 0:
-            st.write(user_template.format(message=message.content), unsafe_allow_html=True)
-        else:
-            st.write(bot_template.format(message=message.content), unsafe_allow_html=True)
-    #    st.write(bot_template.format(message=response), unsafe_allow_html=True)
-    #    st.session_state.conversation.add_to_memory(user_question, response)
-    #    st.write(user_template.format(message=user_question), unsafe_allow_html=True)
+    st.write(response)
+    #    for i, message in enumerate(st.session_state.chat_history):
+    #        if i % 2 == 0:
+    #            st.write(user_template.format(message=message.content), unsafe_allow_html=True)
+    #        else:
+    #            st.write(bot_template.format(message=message.content), unsafe_allow_html=True)
 
+def get_system_prompt(question):
+    system_template = """
+        Question: Please answer the question with citation to the paragraphs.
+        For every sentence you write, cite the book name and paragraph number as <id_x_x> 
+ 
+         At the end of your commentary: 
+             1. Add key words from the book paragraphs.  
+             2. Suggest a further question that can be answered by the paragraphs provided.  
+             3. Create a sources list of book names, paragraph Number author name, and a link for each book you cited.
+    """
+    messages = [
+        SystemMessage(content=system_template),
+        HumanMessagePromptTemplate.from_template("{question}"),
+    ]
+
+    return ChatPromptTemplate.from_messages(messages=messages)
 def main():
     import os
     settings = Settings()
@@ -87,13 +106,15 @@ def main():
     if "conversation" not in st.session_state:
         st.session_state.conversation = None
     if "chat_history" not in st.session_state:
-        st.session_state.chat_history = None
+        st.session_state.chat_history = [
+            AIMessage(content="Hello! How can I help you today?")
+        ]
 
     st.header("Chat with multiple PDFs :books:")
 
     user_question = st.text_input("Ask a question about the PDFs")
     if user_question:
-        handle_user_input(user_question)
+        handle_user_input(get_system_prompt(user_question))
 
     with st.sidebar:
         st.subheader("Your documents")
@@ -115,7 +136,7 @@ def main():
                 print(f"Time taken to create vector store: {end - start}")
 
                 # create conversation chain
-                st.session_state.conversation = get_conversation_chain(vector_store, settings=settings)
+                st.session_state.conversation = get_conversation_chain(vector_store, user_question, settings=settings)
 
 
 if __name__ == "__main__":
