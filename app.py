@@ -119,9 +119,6 @@ def main():
             "Upload some PDFs and click process", type="pdf", accept_multiple_files=True
         )
 
-    user_question = st.text_input("Ask a question about the PDFs...")
-    if user_question:
-        handle_user_input(get_system_prompt(user_question))
 
     # create conversation chain
     if len(pdf_docs) == 0:
@@ -140,6 +137,13 @@ def main():
                         end = time.time()
                         # create vector store for each chunk
                         st.write(f"Time taken to create vector store: {end - start}")
+        if "vector_store" not in st.session_state:
+            st.info("Please process the PDFs first.")
+        else:
+            user_question = st.text_input("Ask a question about the PDFs...")
+            if user_question:
+                st.write(user_template.format(message=user_question), unsafe_allow_html=True)
+                # handle_user_input(get_system_prompt(user_question))
             if "vector_store" in st.session_state:
                 st.session_state.conversation = get_conversation_chain(st.session_state.vector_store, user_question, settings=settings)
 
