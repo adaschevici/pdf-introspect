@@ -127,21 +127,21 @@ def main():
     if pdf_docs is None:
         st.info("Please upload some PDFs to start chatting.")
     else:
-        if st.session_state.vector_store:
-            st.session_state.conversation = get_conversation_chain(st.session_state.vector_store, user_question, settings=settings)
-        if st.button("Process"):
-            with st.spinner("Processing..."):
-                # get raw content from pdf
-                raw_text = get_text_from_pdf(pdf_docs)
-                text_chunks = get_text_chunks(raw_text)
+        with st.sidebar:
+            if st.button("Process"):
+                with st.spinner("Processing..."):
+                    # get raw content from pdf
+                    raw_text = get_text_from_pdf(pdf_docs)
+                    text_chunks = get_text_chunks(raw_text)
 
-                if "vector_store" not in st.session_state:
-                    st.session_state.vector_store = get_vector_store(text_chunks)
-                # create vector store for each chunk
-                start = time.time()
-                st.session_state.vector_store = 
-                end = time.time()
-                print(f"Time taken to create vector store: {end - start}")
+                    if "vector_store" not in st.session_state:
+                        start = time.time()
+                        st.session_state.vector_store = get_vector_store(text_chunks)
+                        end = time.time()
+                        # create vector store for each chunk
+                        st.write(f"Time taken to create vector store: {end - start}")
+            if "vector_store" in st.session_state:
+                st.session_state.conversation = get_conversation_chain(st.session_state.vector_store, user_question, settings=settings)
 
 
 if __name__ == "__main__":
