@@ -39,7 +39,7 @@ def get_text_chunks(raw_text):
 
 def get_vector_store(text_chunks, qdrant_url="http://localhost:6333"):
     # embeddings = OpenAIEmbeddings()
-    embeddings = HuggingFaceInstructEmbeddings(model_name="hkunlp/instructor-xl")
+    embeddings = HuggingFaceInstructEmbeddings(model_name="avsolatorio/GIST-Embedding-v0", model_kwargs={"device": "mps"})
     vector_store = Qdrant.from_documents(
         text_chunks,
         embeddings,
@@ -62,6 +62,17 @@ def get_conversation_chain(vector_store, settings):
     )
     return conversation_chain
 
+def handle_user_input(user_question):
+    response = st.session_state.conversation({"question": user_question})
+    st.session_state.chat_history = response["chat_history"]
+    for i, message in enumerate(st.session_state.chat_history):
+        if i % 2 == 0:
+            st.write(user_template.format(message=message.content), unsafe_allow_html=True)
+        else:
+            st.write(bot_template.format(message=message.content), unsafe_allow_html=True)
+    #    st.write(bot_template.format(message=response), unsafe_allow_html=True)
+    #    st.session_state.conversation.add_to_memory(user_question, response)
+    #    st.write(user_template.format(message=user_question), unsafe_allow_html=True)
 
 def main():
     import os
@@ -75,10 +86,14 @@ def main():
     st.write(css, unsafe_allow_html=True)
     if "conversation" not in st.session_state:
         st.session_state.conversation = None
+    if "chat_history" not in st.session_state:
+        st.session_state.chat_history = None
 
     st.header("Chat with multiple PDFs :books:")
 
-    st.text_input("Ask a question about the PDFs")
+    user_question = st.text_input("Ask a question about the PDFs")
+    if user_question:
+        handle_user_input(user_question)
 
     with st.sidebar:
         st.subheader("Your documents")
@@ -101,9 +116,6 @@ def main():
 
                 # create conversation chain
                 st.session_state.conversation = get_conversation_chain(vector_store, settings=settings)
-    message = "Hello, how can I help you today?"
-    st.write(bot_template.format(message=message), unsafe_allow_html=True)
-    st.write(user_template.format(message=message), unsafe_allow_html=True)
 
 
 if __name__ == "__main__":
