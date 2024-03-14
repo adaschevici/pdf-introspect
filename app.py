@@ -112,31 +112,36 @@ def main():
 
     st.header("Chat with multiple PDFs :books:")
 
-    user_question = st.text_input("Ask a question about the PDFs")
-    if user_question:
-        handle_user_input(get_system_prompt(user_question))
 
     with st.sidebar:
         st.subheader("Your documents")
         pdf_docs = st.file_uploader(
             "Upload some PDFs and click process", type="pdf", accept_multiple_files=True
         )
+
+    user_question = st.text_input("Ask a question about the PDFs...")
+    if user_question:
+        handle_user_input(get_system_prompt(user_question))
+
+    # create conversation chain
+    if pdf_docs is None:
+        st.info("Please upload some PDFs to start chatting.")
+    else:
+        if st.session_state.vector_store:
+            st.session_state.conversation = get_conversation_chain(st.session_state.vector_store, user_question, settings=settings)
         if st.button("Process"):
             with st.spinner("Processing..."):
                 # get raw content from pdf
                 raw_text = get_text_from_pdf(pdf_docs)
-
-                # split the text into chunks
                 text_chunks = get_text_chunks(raw_text)
 
+                if "vector_store" not in st.session_state:
+                    st.session_state.vector_store = get_vector_store(text_chunks)
                 # create vector store for each chunk
                 start = time.time()
-                vector_store = get_vector_store(text_chunks)
+                st.session_state.vector_store = 
                 end = time.time()
                 print(f"Time taken to create vector store: {end - start}")
-
-                # create conversation chain
-                st.session_state.conversation = get_conversation_chain(vector_store, user_question, settings=settings)
 
 
 if __name__ == "__main__":
