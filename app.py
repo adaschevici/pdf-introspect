@@ -124,7 +124,7 @@ def main():
         handle_user_input(get_system_prompt(user_question))
 
     # create conversation chain
-    if pdf_docs is None:
+    if len(pdf_docs) == 0:
         st.info("Please upload some PDFs to start chatting.")
     else:
         with st.sidebar:
