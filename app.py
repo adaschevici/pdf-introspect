@@ -54,7 +54,7 @@ def get_vector_store(text_chunks, qdrant_url="http://localhost:6333"):
     )
     return vector_store
 
-def get_context_retriever_chain(vector_store, question, settings):
+def get_context_retriever_chain(vector_store, settings):
     llm = ChatOpenAI(
         model="gpt-3.5-turbo",
         temperature=0,
@@ -64,14 +64,15 @@ def get_context_retriever_chain(vector_store, question, settings):
     retriever = vector_store.as_retriever()
     prompt = ChatPromptTemplate.from_messages([
         MessagesPlaceholder(variable_name="chat_history"),
-        HumanMessagePromptTemplate.from_template("{question}"),
-        HumanMessagePromptTemplate.from_template("Given the above conversation, generate a search query to look up in order to get information relevant to the conversation"),
+        # HumanMessagePromptTemplate.from_template("{question}"),
+        ("user", "{input}"),
+        ("user", "Given the above conversation, generate a search query to look up in order to get information relevant to the conversation"),
     ])
-    prompt = prompt.format_messages(question=question)
+    # prompt = prompt.format_messages(question=question)
     retriever_chain = create_history_aware_retriever(llm, retriever, prompt)
     return retriever_chain
 
-def get_conversation_chain(retriever_chain, question, settings):
+def get_conversation_chain(retriever_chain, settings):
     system_template = """
         Question: Please answer the question with citation to the paragraphs.
         For every sentence you write, cite the book name and paragraph number as <id_x_x> 
@@ -87,17 +88,19 @@ def get_conversation_chain(retriever_chain, question, settings):
         openai_api_key=settings.openai_api_key.get_secret_value(),
     )
     prompt = ChatPromptTemplate.from_messages([
-        SystemMessage(content=system_template),
+        ("system", system_template),
+        ("system", "Answer the users's questions based on the below context:\n\n{context}"),
         MessagesPlaceholder(variable_name="chat_history"),
-        HumanMessagePromptTemplate.from_template("{question}"),
+        # HumanMessagePromptTemplate.from_template("{question}"),
+        ("user", "{input}"),
     ])
-    prompt = prompt.format_messages(question=question)
+    # prompt = prompt.format_messages(question=question)
     conversation_chain = create_stuff_documents_chain(llm, prompt)
     return create_retrieval_chain(retriever_chain, conversation_chain)
 
 def handle_user_input(user_question, settings):
-    retriever_chain = get_context_retriever_chain(st.session_state.vector_store, question=user_question, settings=settings)
-    conversation_rag_chain = get_conversation_chain(retriever_chain, question=user_question, settings=settings)
+    retriever_chain = get_context_retriever_chain(st.session_state.vector_store, settings=settings)
+    conversation_rag_chain = get_conversation_chain(retriever_chain, settings=settings)
     response = conversation_rag_chain.invoke({
         "chat_history": st.session_state.chat_history,
         "input": user_question
@@ -155,7 +158,8 @@ def main():
             user_question = st.text_input("Ask a question about the PDFs...")
             if user_question:
             # st.write(user_template.format(message=user_question), unsafe_allow_html=True)
-                handle_user_input(user_question, settings=settings)
+                response = handle_user_input(user_question, settings=settings)
+                st.write(bot_template.format(message=response), unsafe_allow_html=True)
                 #            if "vector_store" in st.session_state:
                 #                st.session_state.conversation = get_conversation_chain(st.session_state.vector_store, user_question, settings=settings)
 
