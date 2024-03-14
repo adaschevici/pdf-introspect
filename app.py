@@ -121,9 +121,7 @@ def main():
     if "conversation" not in st.session_state:
         st.session_state.conversation = None
     if "chat_history" not in st.session_state:
-        st.session_state.chat_history = [
-            AIMessage(content="Hello! How can I help you today?")
-        ]
+        st.session_state.chat_history = None
 
     st.header("Chat with multiple PDFs :books:")
 
@@ -159,7 +157,13 @@ def main():
             if user_question:
             # st.write(user_template.format(message=user_question), unsafe_allow_html=True)
                 response = handle_user_input(user_question, settings=settings)
+                st.write(user_template.format(message=user_question), unsafe_allow_html=True)
                 st.write(bot_template.format(message=response), unsafe_allow_html=True)
+                for message in st.session_state.chat_history:
+                    if isinstance(message, AIMessage):
+                        st.write(bot_template.format(message=message.content), unsafe_allow_html=True)
+                    elif isinstance(message, HumanMessage):
+                        st.write(user_template.format(message=message.content), unsafe_allow_html=True)
                 #            if "vector_store" in st.session_state:
                 #                st.session_state.conversation = get_conversation_chain(st.session_state.vector_store, user_question, settings=settings)
 
